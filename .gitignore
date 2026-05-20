@@ -1,0 +1,17 @@
+# Excluir el archivo de variables de entorno (¡CRÍTICO para tus contraseñas!)
+.env
+
+# Excluir las dependencias de Node.js (se reinstalan en Azure automáticamente)
+node_modules/
+
+# Excluir archivos de registro (logs)
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Excluir carpetas de entornos de desarrollo o del sistema operativo
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

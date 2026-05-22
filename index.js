@@ -631,7 +631,6 @@ const server = net.createServer((socket) => {
   socket.on('data', (data) => { console.log('Datos recibidos: ' + data.toString()); });
   socket.on('end', () => { console.log('Cliente Socket desconectado'); });
 });
-server.listen(5000, '0.0.0.0', () => { console.log('Servidor TCP escuchando en 0.0.0.0:5000'); });
 
 function obtenerHoraActual() {
   const ahora = new Date();

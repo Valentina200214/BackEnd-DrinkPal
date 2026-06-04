@@ -2,7 +2,7 @@ require('dotenv').config()
 const express  = require('express')
 const cors     = require('cors')
 const app      = express()
-const port     = 3000
+const port     = 443
 const net      = require('node:net');
 const mongoose = require('mongoose');
 const auth     = require('./middleware/auth');
@@ -22,15 +22,52 @@ const ProductoDrinkpal     = require('./models/ProductoDrinkpal');
 const Usuario = require('./models/Usuario');
 const Rol = require('./models/Rol');
 
+const path = require('path');
+const fs = require('fs');
+const https = require('https');
+const http = require('http');
+
+const app = express();
+
+const DIST_DIR = path.join(__dirname, 'dist');
+
+const SSL_OPTIONS = {
+  key: fs.readFileSync('/opt/certs/privkey.pem'),
+  cert: fs.readFileSync('/opt/certs/fullchain.pem')
+};
+
 console.log("start");
 app.use(cors());
 app.use(express.json());
 
 
+//-------------------------------------------------------------
+app.use(express.static(DIST_DIR));
+
+app.get('/*splat', (req, res) => {
+  res.sendFile(path.join(DIST_DIR, 'index.html'), (err) => {
+    if (err) {
+      res.status(500).send('Error: falta index.html en dist');
+    }
+  });
+});
+
+https.createServer(SSL_OPTIONS, app).listen(443, () => {
+  console.log('HTTPS corriendo en 443');
+});
+
+http.createServer((req, res) => {
+  res.writeHead(301, {
+    Location: 'https://' + req.headers.host + req.url
+  });
+  res.end();
+}).listen(80);
+//-------------------------------------------------------------
+
 // ════════════════════════════════════════════════════════════
 //  RUTAS PÚBLICAS
 // ════════════════════════════════════════════════════════════
-app.post('/login', async (req, res) => {
+app.post('/api/login', async (req, res) => {
 
   const respuesta = await usuarioController.login(req.body);
 
@@ -48,7 +85,7 @@ app.post('/login', async (req, res) => {
 
 });
 
-app.post('/admin/login', async (req, res) => {
+app.post('/api/admin/login', async (req, res) => {
   const respuesta = await usuarioAdminCtrl.loginAdmin(req.body);
   res.send({ token: respuesta });
 });
@@ -58,7 +95,7 @@ app.post('/admin/login', async (req, res) => {
 //  USUARIOS FINALES
 // ════════════════════════════════════════════════════════════
 
-app.post('/usuarios', async (req, res) => {
+app.post('/api/usuarios', async (req, res) => {
   const result = await crearUsuario(req.body);
 
   if (result.error) {
@@ -76,10 +113,10 @@ app.post('/usuarios', async (req, res) => {
 
 
 
-app.get('/usuarios', auth, async (req, res) => {
+app.get('/api/usuarios', auth, async (req, res) => {
   res.send({ msg: await usuarioController.obtenerUsuarios() });
 });
-app.post('/usuarios/correo', auth, async (req, res) => {
+app.post('/api/usuarios/correo', auth, async (req, res) => {
   res.send({ msg: await usuarioController.getcorreoUsuarios(req.body) });
 });
 
@@ -87,25 +124,25 @@ app.post('/usuarios/correo', auth, async (req, res) => {
 // ════════════════════════════════════════════════════════════
 //  METAS / RACHAS
 // ════════════════════════════════════════════════════════════
-app.post('/metas', auth, async (req, res) => {
+app.post('/api/metas', auth, async (req, res) => {
   res.send({ msg: await metaController.crearMeta(req.body) });
 });
-app.get('/metas', auth, async (req, res) => {
+app.get('/api/metas', auth, async (req, res) => {
   res.send({ msg: await metaController.obtenerMetas() });
 });
-app.get('/metas/:id', auth, async (req, res) => {
+app.get('/api/metas/:id', auth, async (req, res) => {
   res.send({ msg: await metaController.obtenerMetaPorId(req.params.id) });
 });
-app.get('/metas/:idMeta/tareas', auth, async (req, res) => {
+app.get('/api/metas/:idMeta/tareas', auth, async (req, res) => {
   res.send({ msg: await tareaController.obtenerTareasPorMeta(req.params.idMeta) });
 });
-app.get('/metas/:idMeta/avances', auth, async (req, res) => {
+app.get('/api/metas/:idMeta/avances', auth, async (req, res) => {
   res.send({ msg: await avanceMetaController.obtenerAvancesPorMeta(req.params.idMeta) });
 });
-app.put('/metas/:id', auth, async (req, res) => {
+app.put('/api/metas/:id', auth, async (req, res) => {
   res.send({ msg: await metaController.actualizarMeta(req.params.id, req.body) });
 });
-app.delete('/metas/:id', auth, async (req, res) => {
+app.delete('/api/metas/:id', auth, async (req, res) => {
   res.send({ msg: await metaController.eliminarMeta(req.params.id) });
 });
 
@@ -113,22 +150,22 @@ app.delete('/metas/:id', auth, async (req, res) => {
 // ════════════════════════════════════════════════════════════
 //  TAREAS
 // ════════════════════════════════════════════════════════════
-app.post('/tareas', auth, async (req, res) => {
+app.post('/api/tareas', auth, async (req, res) => {
   res.send({ msg: await tareaController.crearTarea(req.body) });
 });
-app.get('/tareas', auth, async (req, res) => {
+app.get('/api/tareas', auth, async (req, res) => {
   res.send({ msg: await tareaController.obtenerTareas() });
 });
-app.get('/tareas/:id', auth, async (req, res) => {
+app.get('/api/tareas/:id', auth, async (req, res) => {
   res.send({ msg: await tareaController.obtenerTareaPorId(req.params.id) });
 });
-app.get('/tareas/:idTarea/avances', auth, async (req, res) => {
+app.get('/api/tareas/:idTarea/avances', auth, async (req, res) => {
   res.send({ msg: await avanceTareaController.obtenerAvancesPorTarea(req.params.idTarea) });
 });
-app.put('/tareas/:id', auth, async (req, res) => {
+app.put('/api/tareas/:id', auth, async (req, res) => {
   res.send({ msg: await tareaController.actualizarTarea(req.params.id, req.body) });
 });
-app.delete('/tareas/:id', auth, async (req, res) => {
+app.delete('/api/tareas/:id', auth, async (req, res) => {
   res.send({ msg: await tareaController.eliminarTarea(req.params.id) });
 });
 
@@ -136,24 +173,24 @@ app.delete('/tareas/:id', auth, async (req, res) => {
 // ════════════════════════════════════════════════════════════
 //  CONSUMO DE AGUA
 // ════════════════════════════════════════════════════════════
-app.post('/consumos', auth, async (req, res) => {
+app.post('/api/consumos', auth, async (req, res) => {
   res.send({ msg: await consumoController.registrarConsumo(req.body) });
 });
-app.get('/consumos', auth, async (req, res) => {
+app.get('/api/consumos', auth, async (req, res) => {
   res.send({ msg: await consumoController.obtenerConsumos() });
 });
-app.get('/consumos/:id', auth, async (req, res) => {
+app.get('/api/consumos/:id', auth, async (req, res) => {
   res.send({ msg: await consumoController.obtenerConsumoPorId(req.params.id) });
 });
-app.get('/usuarios/:idUsuario/consumos', auth, async (req, res) => {
+app.get('/api/usuarios/:idUsuario/consumos', auth, async (req, res) => {
   res.send({ msg: await consumoController.obtenerConsumosPorUsuario(req.params.idUsuario) });
 });
-app.delete('/consumos/:id', auth, async (req, res) => {
+app.delete('/api/consumos/:id', auth, async (req, res) => {
   res.send({ msg: await consumoController.eliminarConsumo(req.params.id) });
 });
 
 // GET /usuarios/:idUsuario/racha — racha actual del usuario
-app.get('/usuarios/:idUsuario/racha', auth, async (req, res) => {
+app.get('/api/usuarios/:idUsuario/racha', auth, async (req, res) => {
   const resultado = await consumoController.calcularRacha(req.params.idUsuario);
   res.json(resultado);
 });
@@ -162,22 +199,22 @@ app.get('/usuarios/:idUsuario/racha', auth, async (req, res) => {
 // ════════════════════════════════════════════════════════════
 //  ASIGNACIONES
 // ════════════════════════════════════════════════════════════
-app.post('/asignaciones', auth, async (req, res) => {
+app.post('/api/asignaciones', auth, async (req, res) => {
   res.send({ msg: await asignacionController.crearAsignacion(req.body) });
 });
-app.get('/asignaciones', auth, async (req, res) => {
+app.get('/api/asignaciones', auth, async (req, res) => {
   res.send({ msg: await asignacionController.obtenerAsignaciones() });
 });
-app.get('/asignaciones/:id', auth, async (req, res) => {
+app.get('/api/asignaciones/:id', auth, async (req, res) => {
   res.send({ msg: await asignacionController.obtenerAsignacionPorId(req.params.id) });
 });
-app.get('/usuarios/:idUsuario/asignaciones', auth, async (req, res) => {
+app.get('/api/usuarios/:idUsuario/asignaciones', auth, async (req, res) => {
   res.send({ msg: await asignacionController.obtenerAsignacionesPorUsuario(req.params.idUsuario) });
 });
-app.put('/asignaciones/:id', auth, async (req, res) => {
+app.put('/api/asignaciones/:id', auth, async (req, res) => {
   res.send({ msg: await asignacionController.actualizarAsignacion(req.params.id, req.body) });
 });
-app.delete('/asignaciones/:id', auth, async (req, res) => {
+app.delete('/api/asignaciones/:id', auth, async (req, res) => {
   res.send({ msg: await asignacionController.eliminarAsignacion(req.params.id) });
 });
 
@@ -185,13 +222,13 @@ app.delete('/asignaciones/:id', auth, async (req, res) => {
 // ════════════════════════════════════════════════════════════
 //  AVANCE DE METAS  (historial — sin DELETE ni PUT)
 // ════════════════════════════════════════════════════════════
-app.post('/avancemetas', auth, async (req, res) => {
+app.post('/api/avancemetas', auth, async (req, res) => {
   res.send({ msg: await avanceMetaController.registrarAvanceMeta(req.body) });
 });
-app.get('/avancemetas', auth, async (req, res) => {
+app.get('/api/avancemetas', auth, async (req, res) => {
   res.send({ msg: await avanceMetaController.obtenerAvancesMeta() });
 });
-app.get('/usuarios/:idUsuario/avancemetas', auth, async (req, res) => {
+app.get('/api/usuarios/:idUsuario/avancemetas', auth, async (req, res) => {
   res.send({ msg: await avanceMetaController.obtenerAvancesPorUsuario(req.params.idUsuario) });
 });
 
@@ -199,13 +236,13 @@ app.get('/usuarios/:idUsuario/avancemetas', auth, async (req, res) => {
 // ════════════════════════════════════════════════════════════
 //  AVANCE DE TAREAS  (historial — sin DELETE ni PUT)
 // ════════════════════════════════════════════════════════════
-app.post('/avancetareas', auth, async (req, res) => {
+app.post('/api/avancetareas', auth, async (req, res) => {
   res.send({ msg: await avanceTareaController.registrarAvanceTarea(req.body) });
 });
-app.get('/avancetareas', auth, async (req, res) => {
+app.get('/api/avancetareas', auth, async (req, res) => {
   res.send({ msg: await avanceTareaController.obtenerAvancesTarea() });
 });
-app.get('/usuarios/:idUsuario/avancetareas', auth, async (req, res) => {
+app.get('/api/usuarios/:idUsuario/avancetareas', auth, async (req, res) => {
   res.send({ msg: await avanceTareaController.obtenerAvancesPorUsuario(req.params.idUsuario) });
 });
 
@@ -213,19 +250,19 @@ app.get('/usuarios/:idUsuario/avancetareas', auth, async (req, res) => {
 // ════════════════════════════════════════════════════════════
 //  USUARIOS ADMINISTRATIVOS
 // ════════════════════════════════════════════════════════════
-app.post('/admin/usuarios', auth, async (req, res) => {
+app.post('/api/admin/usuarios', auth, async (req, res) => {
   res.send({ msg: await usuarioAdminCtrl.crearUsuarioAdmin(req.body) });
 });
-app.get('/admin/usuarios', auth, async (req, res) => {
+app.get('/api/admin/usuarios', auth, async (req, res) => {
   res.send({ msg: await usuarioAdminCtrl.obtenerUsuariosAdmin() });
 });
-app.get('/admin/usuarios/:id', auth, async (req, res) => {
+app.get('/api/admin/usuarios/:id', auth, async (req, res) => {
   res.send({ msg: await usuarioAdminCtrl.obtenerUsuarioAdminPorId(req.params.id) });
 });
-app.put('/admin/usuarios/:id', auth, async (req, res) => {
+app.put('/api/admin/usuarios/:id', auth, async (req, res) => {
   res.send({ msg: await usuarioAdminCtrl.actualizarUsuarioAdmin(req.params.id, req.body) });
 });
-app.delete('/admin/usuarios/:id', auth, async (req, res) => {
+app.delete('/api/admin/usuarios/:id', auth, async (req, res) => {
   res.send({ msg: await usuarioAdminCtrl.eliminarUsuarioAdmin(req.params.id) });
 });
 
@@ -233,22 +270,22 @@ app.delete('/admin/usuarios/:id', auth, async (req, res) => {
 // ════════════════════════════════════════════════════════════
 //  TAREAS ADMINISTRATIVAS
 // ════════════════════════════════════════════════════════════
-app.post('/admin/tareas', auth, async (req, res) => {
+app.post('/api/admin/tareas', auth, async (req, res) => {
   res.send({ msg: await tareaAdminController.crearTareaAdmin(req.body) });
 });
-app.get('/admin/tareas', auth, async (req, res) => {
+app.get('/api/admin/tareas', auth, async (req, res) => {
   res.send({ msg: await tareaAdminController.obtenerTareasAdmin() });
 });
-app.get('/admin/tareas/:id', auth, async (req, res) => {
+app.get('/api/admin/tareas/:id', auth, async (req, res) => {
   res.send({ msg: await tareaAdminController.obtenerTareaAdminPorId(req.params.id) });
 });
-app.get('/admin/usuarios/:idUsuarioAdmin/tareas', auth, async (req, res) => {
+app.get('/api/admin/usuarios/:idUsuarioAdmin/tareas', auth, async (req, res) => {
   res.send({ msg: await tareaAdminController.obtenerTareasAdminPorUsuario(req.params.idUsuarioAdmin) });
 });
-app.put('/admin/tareas/:id', auth, async (req, res) => {
+app.put('/api/admin/tareas/:id', auth, async (req, res) => {
   res.send({ msg: await tareaAdminController.actualizarTareaAdmin(req.params.id, req.body) });
 });
-app.delete('/admin/tareas/:id', auth, async (req, res) => {
+app.delete('/api/admin/tareas/:id', auth, async (req, res) => {
   res.send({ msg: await tareaAdminController.eliminarTareaAdmin(req.params.id) });
 });
 
@@ -258,37 +295,37 @@ app.delete('/admin/tareas/:id', auth, async (req, res) => {
 // ════════════════════════════════════════════════════════════
 
 // S1 — Guardar meta de consumo diario
-app.post('/mi/meta-consumo', auth, async (req, res) => {
+app.post('/api/mi/meta-consumo', auth, async (req, res) => {
   res.send(await serviciosCtrl.guardarMetaConsumo(req.usuario.id, req.body));
 });
 
 // S2 — Resumen de consumo entre dos fechas
-app.post('/mi/resumen-periodo', auth, async (req, res) => {
+app.post('/api/mi/resumen-periodo', auth, async (req, res) => {
   res.send(await serviciosCtrl.resumenPorPeriodo(req.usuario.id, req.body));
 });
 
 // S3 — Tareas pendientes hoy
-app.get('/mi/tareas-pendientes', auth, async (req, res) => {
+app.get('/api/mi/tareas-pendientes', auth, async (req, res) => {
   res.send(await serviciosCtrl.tareasPendientesHoy(req.usuario.id));
 });
 
 // S4 — Consumo del día en mL
-app.get('/mi/consumo-hoy', auth, async (req, res) => {
+app.get('/api/mi/consumo-hoy', auth, async (req, res) => {
   res.send(await serviciosCtrl.consumoDeHoy(req.usuario.id));
 });
 
 // S5 — Consumo semana en L + meta semanal
-app.get('/mi/consumo-semana', auth, async (req, res) => {
+app.get('/api/mi/consumo-semana', auth, async (req, res) => {
   res.send(await serviciosCtrl.consumoSemana(req.usuario.id));
 });
 
 // S6 — Tareas asignadas vs completadas hoy
-app.get('/mi/resumen-tareas-hoy', auth, async (req, res) => {
+app.get('/api/mi/resumen-tareas-hoy', auth, async (req, res) => {
   res.send(await serviciosCtrl.resumenTareasHoy(req.usuario.id));
 });
 
 // S7 — Metas/tareas semana: asignadas vs completadas
-app.get('/mi/resumen-semana', auth, async (req, res) => {
+app.get('/api/mi/resumen-semana', auth, async (req, res) => {
   res.send(await serviciosCtrl.resumenMetasSemana(req.usuario.id));
 });
 
@@ -296,14 +333,14 @@ app.get('/mi/resumen-semana', auth, async (req, res) => {
 // ════════════════════════════════════════════════════════════
 //  RUTA ORIGINAL — HORA + SOCKET
 // ════════════════════════════════════════════════════════════
-app.get('/', auth, (req, res) => { res.send(obtenerHoraActual()); });
-app.post('/leds', auth, (req, res) => {
+app.get('/api/', auth, (req, res) => { res.send(obtenerHoraActual()); });
+app.post('/api/leds', auth, (req, res) => {
   const { led1, led2 } = req.body;
   socketExterno.write("$LED 1 " + led1 + "\n");
   socketExterno.write("$LED 2 " + led2 + "\n");
   res.send({ msg: "Se escribieron los LEDs" });
 });
-app.get('/bateria', (req, res) => {
+app.get('/api/bateria', (req, res) => {
   let max = 100
   let min = 0
   let bateria = Math.floor(Math.random() *  (max - min + 1)) + min
@@ -313,7 +350,7 @@ app.get('/bateria', (req, res) => {
   res.send(payload)
 });
 
-app.post('/productos', auth, async (req, res) => {
+app.post('/api/productos', auth, async (req, res) => {
   try {
     const { id_producto } = req.body;
     if (!id_producto) return res.status(400).json({ msg: 'id_producto es requerido' });
@@ -329,7 +366,7 @@ app.post('/productos', auth, async (req, res) => {
 });
 
 // GET /me — usuario actual desde token
-app.get('/me', auth, async (req, res) => {
+app.get('/api/me', auth, async (req, res) => {
   try {
     const usuario = await Usuario.findById(req.usuario.id).select('-clave').populate('rol');
     if (!usuario) return res.status(404).json({ msg: 'Usuario no encontrado' });
@@ -340,7 +377,7 @@ app.get('/me', auth, async (req, res) => {
 });
  
 // PUT /usuarios/:id/meta — actualizar meta diaria de agua
-app.put('/usuarios/:id/meta', auth, async (req, res) => {
+app.put('/api/usuarios/:id/meta', auth, async (req, res) => {
   try {
     const updated = await Usuario.findByIdAndUpdate(
       req.params.id,
@@ -354,7 +391,7 @@ app.put('/usuarios/:id/meta', auth, async (req, res) => {
 });
  
 // POST /usuarios/:idUsuario/consumos/seed — insertar datos históricos simulados
-app.post('/usuarios/:idUsuario/consumos/seed', auth, async (req, res) => {
+app.post('/api/usuarios/:idUsuario/consumos/seed', auth, async (req, res) => {
   try {
     const ConsumoAgua = require('./models/ConsumoAgua');
     const docs = (req.body.consumos || []).map(c => ({
@@ -371,7 +408,7 @@ app.post('/usuarios/:idUsuario/consumos/seed', auth, async (req, res) => {
 });
  
 // GET /usuarios/:idUsuario/consumos/semana — últimos 7 días de consumo
-app.get('/usuarios/:idUsuario/consumos/semana', auth, async (req, res) => {
+app.get('/api/usuarios/:idUsuario/consumos/semana', auth, async (req, res) => {
   try {
     const ConsumoAgua = require('./models/ConsumoAgua');
     const hace7dias = new Date();
@@ -388,7 +425,7 @@ app.get('/usuarios/:idUsuario/consumos/semana', auth, async (req, res) => {
 });
  
 // GET /usuarios/:idUsuario/consumos/hoy — total del día actual
-app.get('/usuarios/:idUsuario/consumos/hoy', auth, async (req, res) => {
+app.get('/api/usuarios/:idUsuario/consumos/hoy', auth, async (req, res) => {
   try {
     const ConsumoAgua = require('./models/ConsumoAgua');
     const inicioHoy = new Date();
@@ -405,9 +442,6 @@ app.get('/usuarios/:idUsuario/consumos/hoy', auth, async (req, res) => {
 });
 
 
-// ════════════════════════════════════════════════════════════
-//  SERVIDOR HTTP
-// ════════════════════════════════════════════════════════════
 
 // ════════════════════════════════════════════════════════════
 //  RUTAS ADMINISTRATIVAS NUEVAS
@@ -415,7 +449,7 @@ app.get('/usuarios/:idUsuario/consumos/hoy', auth, async (req, res) => {
 
 // DELETE /admin/usuarios/por-correo
 // Elimina un usuario final por correo y libera su producto (usado → false)
-app.delete('/admin/usuarios/por-correo', auth, async (req, res) => {
+app.delete('/api/admin/usuarios/por-correo', auth, async (req, res) => {
   try {
     const { correo } = req.body;
     if (!correo) return res.status(400).json({ msg: 'El correo es requerido' });
@@ -444,7 +478,7 @@ app.delete('/admin/usuarios/por-correo', auth, async (req, res) => {
 // GET /admin/consumos
 // Devuelve registros de consumo con filtros opcionales por fecha, correo e id_producto.
 // Query params: fechaInicio, fechaFin, correo, id_producto  (todos opcionales)
-app.get('/admin/consumos', auth, async (req, res) => {
+app.get('/api/admin/consumos', auth, async (req, res) => {
   try {
     const ConsumoAgua = require('./models/ConsumoAgua');
     const { fechaInicio, fechaFin, correo, id_producto } = req.query;
@@ -493,7 +527,7 @@ app.get('/admin/consumos', auth, async (req, res) => {
 
 
 
-app.get('/admin/usuarios-resumen', auth, async (req, res) => {
+app.get('/api/admin/usuarios-resumen', auth, async (req, res) => {
   try {
     const ConsumoAgua = require('./models/ConsumoAgua');
  
@@ -535,7 +569,7 @@ app.get('/admin/usuarios-resumen', auth, async (req, res) => {
 // GET /admin/productos/disponibles
 // Devuelve los productos DrinkPal que aún no han sido usados
 // ──────────────────────────────────────────────────────────────
-app.get('/admin/productos/disponibles', auth, async (req, res) => {
+app.get('/api/admin/productos/disponibles', auth, async (req, res) => {
   try {
     const productos = await ProductoDrinkpal.find({ usado: false }).lean();
     res.json({ msg: productos });
@@ -550,7 +584,7 @@ app.get('/admin/productos/disponibles', auth, async (req, res) => {
 // GET /admin/productos/en-uso
 // Devuelve los productos en uso junto con el correo y nombre del usuario
 // ──────────────────────────────────────────────────────────────
-app.get('/admin/productos/en-uso', auth, async (req, res) => {
+app.get('/api/admin/productos/en-uso', auth, async (req, res) => {
   try {
     const productos = await ProductoDrinkpal.find({ usado: true }).lean();
  
@@ -579,7 +613,7 @@ app.get('/admin/productos/en-uso', auth, async (req, res) => {
 // Crea un usuario con rol admin. Usa id_producto = 'DP-admin'
 // (puede repetirse entre administradores, sin pasar por ProductoDrinkpal)
 // ──────────────────────────────────────────────────────────────
-app.post('/admin/crear-admin', auth, async (req, res) => {
+app.post('/api/admin/crear-admin', auth, async (req, res) => {
   try {
     const { correo, nombre, clave } = req.body;
  

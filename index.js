@@ -27,8 +27,6 @@ const fs = require('fs');
 const https = require('https');
 const http = require('http');
 
-const app = express();
-
 const DIST_DIR = path.join(__dirname, 'dist');
 
 const SSL_OPTIONS = {

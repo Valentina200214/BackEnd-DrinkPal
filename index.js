@@ -47,7 +47,7 @@ app.use(express.json());
 //-------------------------------------------------------------
 app.use(express.static(DIST_DIR));
 
-app.get('/*splat', (req, res) => {
+app.get('/', (req, res) => {
   res.sendFile(path.join(DIST_DIR, 'index.html'), (err) => {
     if (err) {
       res.status(500).send('Error: falta index.html en dist');

@@ -35,7 +35,11 @@ const SSL_OPTIONS = {
 };
 
 console.log("start");
-app.use(cors());
+app.use(cors(
+  {
+    methods: ["POST", "GET"]
+  }
+));
 app.use(express.json());
 
 

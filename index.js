@@ -37,6 +37,7 @@ const SSL_OPTIONS = {
 console.log("start");
 app.use(cors(
   {
+    origin: "https://drinkpal.online",
     methods: ["POST", "GET"]
   }
 ));
